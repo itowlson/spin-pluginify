@@ -1,0 +1,18 @@
+[package]
+name = "pluginify"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.68"
+clap = { version = "4.1.4", features = ["derive"] }
+flate2 = "1.0.25"
+path-absolutize = "3.0.14"
+serde = "1.0.152"
+serde_json = "1.0.91"
+sha2 = "0.10.6"
+tar = "0.4.38"
+toml = "0.6.0"
+url = "2.3.1"

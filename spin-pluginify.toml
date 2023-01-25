@@ -1,0 +1,5 @@
+name = "pluginify"
+version = "0.3"
+spin_compatibility = ">=0.7"
+license = "Apache-2.0"
+package = "./target/debug/pluginify"
