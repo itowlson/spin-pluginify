@@ -5,8 +5,8 @@ This is a [Spin](https://developer.fermyon.com/spin/index) plugin that helps wit
 ## Installation
 
 ```
-cargo build
-./target/debug/spin-pluginify
+cargo build --release
+./target/release/spin-pluginify
 spin plugins install --file spin-pluginify.json --yes
 ```
 

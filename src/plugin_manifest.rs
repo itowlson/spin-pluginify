@@ -1,5 +1,6 @@
 // MUST KEEP IN SYNC WITH SPIN
 
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 /// Expected schema of a plugin manifest. Should match the latest Spin plugin
@@ -49,14 +50,23 @@ pub(crate) enum Os {
 }
 
 impl Os {
-    pub(crate) fn current() -> Self {
-        match std::env::consts::OS {
-            "linux" => Os::Linux,
-            "macos" => Os::Macos,
-            "windows" => Os::Windows,
-            _ => panic!("Unsupported OS {}", std::env::consts::OS),
+    pub(crate) fn parse(src: &str) -> anyhow::Result<Self> {
+        match src {
+            "linux" => Ok(Os::Linux),
+            "macos" | "osx" => Ok(Os::Macos),
+            "windows" | "win32" => Ok(Os::Windows),
+            _ => Err(anyhow!("unknown OS {}", src)),
         }
     }
+
+    // pub(crate) fn current() -> Self {
+    //     match std::env::consts::OS {
+    //         "linux" => Os::Linux,
+    //         "macos" => Os::Macos,
+    //         "windows" => Os::Windows,
+    //         _ => panic!("Unsupported OS {}", std::env::consts::OS),
+    //     }
+    // }
 }
 
 /// Describes the compatible architecture of a plugin
@@ -69,12 +79,21 @@ pub(crate) enum Architecture {
 }
 
 impl Architecture {
-    pub(crate) fn current() -> Self {
-        match std::env::consts::ARCH {
-            "x86_64" => Architecture::Amd64,
-            "aarch64" => Architecture::Aarch64,
-            "arm64" => Architecture::Arm,
-            _ => panic!("Unsupported architecture {}", std::env::consts::ARCH),
+    pub(crate) fn parse(src: &str) -> anyhow::Result<Self> {
+        match src {
+            "amd64" | "x86_64" => Ok(Architecture::Amd64),
+            "aarch64" => Ok(Architecture::Aarch64),
+            "arm" => Ok(Architecture::Arm),
+            _ => Err(anyhow!("unknown architecture {}", src)),
         }
     }
+
+    // pub(crate) fn current() -> Self {
+    //     match std::env::consts::ARCH {
+    //         "x86_64" => Architecture::Amd64,
+    //         "aarch64" => Architecture::Aarch64,
+    //         "arm64" => Architecture::Arm,
+    //         _ => panic!("Unsupported architecture {}", std::env::consts::ARCH),
+    //     }
+    // }
 }
