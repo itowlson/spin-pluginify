@@ -8,9 +8,9 @@ on:
   pull_request:
     branches: [main]
 
-# TEMPORARILY
-permissions:
-  contents: write
+# # TEMPORARILY
+# permissions:
+#   contents: write
 
 jobs:
   build:
@@ -74,8 +74,8 @@ jobs:
             *.json
 
   package:
-    # TODO: THIS NEEDS TO BE "IF PUSH" WHEN ALL WORKING IF THAT EVER HAPPENS
     name: Package plugin
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -93,16 +93,14 @@ jobs:
         run: echo "RELEASE_VERSION=precanary" >> $GITHUB_ENV
       - name: Download artifacts
         uses: actions/download-artifact@v3
-      - name: Display structure of downloaded files
-        run: ls -R
+      # - name: Display structure of downloaded files
+      #   run: ls -R
       - name: pluginify it
         run: |
           chmod +x ./pluginify/pluginify
           ./pluginify/pluginify --merge --release-url-base https://github.com/itowlson/spin-pluginify/releases/download/${{ env.RELEASE_VERSION }}/ >pluginify.json
-      - name: Display structure of files after merge
-        run: ls -l -R
-      - name: Display merged manifest
-        run: cat pluginify.json
+      # - name: Display merged manifest
+      #   run: cat pluginify.json
 
       # Handle versioned release
       - name: Upload tars to Github release
@@ -151,34 +149,3 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: pluginify.json
           tag: canary
-
-      # TEST: Handle dev-test release
-      - name: Delete canary tag
-        if: github.event_name == 'pull_request'
-        uses: dev-drprasad/delete-tag-and-release@v0.2.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: precanary
-      - name: Recreate canary tag and release
-        if: github.event_name == 'pull_request'
-        uses: ncipollo/release-action@v1.10.0
-        with:
-          tag: precanary
-          allowUpdates: true
-          prerelease: true
-      - name: Upload tars to Github release
-        if: github.event_name == 'pull_request'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "**/*.tar.gz"
-          file_glob: true
-          tag: precanary
-      - name: Upload manifest to Github release
-        if: github.event_name == 'pull_request'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: pluginify.json
-          tag: precanary

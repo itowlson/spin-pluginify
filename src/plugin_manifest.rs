@@ -58,15 +58,6 @@ impl Os {
             _ => Err(anyhow!("unknown OS {}", src)),
         }
     }
-
-    // pub(crate) fn current() -> Self {
-    //     match std::env::consts::OS {
-    //         "linux" => Os::Linux,
-    //         "macos" => Os::Macos,
-    //         "windows" => Os::Windows,
-    //         _ => panic!("Unsupported OS {}", std::env::consts::OS),
-    //     }
-    // }
 }
 
 /// Describes the compatible architecture of a plugin
@@ -87,13 +78,4 @@ impl Architecture {
             _ => Err(anyhow!("unknown architecture {}", src)),
         }
     }
-
-    // pub(crate) fn current() -> Self {
-    //     match std::env::consts::ARCH {
-    //         "x86_64" => Architecture::Amd64,
-    //         "aarch64" => Architecture::Aarch64,
-    //         "arm64" => Architecture::Arm,
-    //         _ => panic!("Unsupported architecture {}", std::env::consts::ARCH),
-    //     }
-    // }
 }
