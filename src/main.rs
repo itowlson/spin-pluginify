@@ -11,18 +11,45 @@ type Error = anyhow::Error;
 
 #[derive(Parser)]
 struct PluginifyCommand {
-    #[clap(short = 'f')]
+    /// The settings file. Defaults to `spin-pluginify.toml`.
+    #[clap(name = "FILE", short = 'f')]
     file: Option<PathBuf>,
+
+    /// Overrides the inferred OS - useful for cross compile
+    /// situations
+    #[clap(long = "os")]
+    os_override: Option<String>,
+
+    /// Overrides the inferred architecture - useful for cross compile
+    /// situations
+    #[clap(long = "arch")]
+    arch_override: Option<String>,
+
+    /// Used in multi-platform scenarios to merge per-platform manifests.
+    #[clap(name = "MERGE", long = "merge", conflicts_with = "FILE", requires = "URL_BASE")]
+    merge: bool,
+
+    /// Used in multi-platform scenarios to merge per-platform manifests.
+    #[clap(name = "URL_BASE", long = "release-url-base", requires = "MERGE")]
+    release_url_base: Option<url::Url>,
 }
 
 fn main() -> Result<(), Error> {
     let cmd = PluginifyCommand::parse();
-    let file = cmd.file.unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
+    if cmd.merge {
+        run_merge(cmd)
+    } else {
+        run_local(cmd)
+    }
+}
+
+fn run_local(cmd: PluginifyCommand) -> Result<(), Error> {
+    let file = cmd.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
     let text = std::fs::read_to_string(&file)?;
 
     let ps: PackagingSettings = toml::from_str(&text)?;
 
-    let package = package(&ps)?;
+    let package = package(&cmd, &ps)?;
 
     let manifest = plugin_manifest::PluginManifest {
         name: ps.name.clone(),
@@ -41,26 +68,121 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn package(ps: &PackagingSettings) -> Result<plugin_manifest::PluginPackage, Error> {
-    let tar_path = tar_package_source(&ps)?;
+fn run_merge(cmd: PluginifyCommand) -> Result<(), Error> {
+    // This expects a set of subdirectories, one per supported platform
+    // each containing ONE plugin manifest and ONE `tar.gz` file to which the
+    // manifest refers (possibly with mad pathing in the URL but that's okay).
+    // Directories without this structure are ignored (it's valid for them to
+    // exist, they're just not candidates for merging).
+    // let dir_entries = std::fs::read_dir(".")?;
+    let subdirs = std::fs::read_dir(".")?
+        .filter_map(|de| de.ok())
+        .filter(|de| de.file_type().map(|ft| ft.is_dir()).unwrap_or_default())
+        .map(|de| de.path());
+        // .collect::<Vec<_>>();
+
+    let subdirs_to_merge = subdirs
+        .filter_map(|path| as_merge_set(&path))
+        .collect::<Vec<_>>();
+        
+    let mut merged_manifest = None;
+    let release_url_base = cmd.release_url_base.ok_or(anyhow!("must pass a URL base"))?;
+
+    for subdir in subdirs_to_merge {
+        let manifest = read_manifest_from_dir(&subdir.manifest)?;
+        match merged_manifest {
+            None => {
+                merged_manifest = Some(releasify_url(manifest, &subdir.tar, &release_url_base)?);
+            },
+            Some(merged) => {
+                merged_manifest = Some(merge_info(merged, manifest, &subdir.tar, &release_url_base)?);
+            }
+        }
+    }
+
+    let merged_manifest = match merged_manifest {
+        Some(m) => m,
+        None => anyhow::bail!("No manifests to merge"),
+    };
+
+    println!("{}", serde_json::to_string_pretty(&merged_manifest)?);
+
+    Ok(())
+}
+
+struct MergeFiles {
+    manifest: PathBuf,
+    tar: PathBuf,
+}
+
+fn as_merge_set(path: &PathBuf) -> Option<MergeFiles> {
+    let files = std::fs::read_dir(path)
+        .ok()?
+        .filter_map(|de| de.ok())
+        .filter(|de| de.file_type().map(|ft| ft.is_file()).unwrap_or_default())
+        .map(|de| de.path())
+        .collect::<Vec<_>>();
+
+    if files.len() != 2 {
+        return None;
+    }
+
+    let tar = files.clone().into_iter().find(|f| f.extension().unwrap_or_default() == "gz");
+    let manifest = files.into_iter().find(|f| f.extension().unwrap_or_default() == "json");
+
+    match (tar, manifest) {
+        (Some(tar), Some(manifest)) => Some(MergeFiles { tar, manifest }),
+        _ => None,
+    }
+}
+
+fn read_manifest_from_dir(path: &PathBuf) -> Result<plugin_manifest::PluginManifest, Error> {
+    let buf = std::fs::read(path)?;
+    let manifest = serde_json::from_slice(&buf)?;
+    Ok(manifest)
+}
+
+fn merge_info(mut dest: plugin_manifest::PluginManifest, source: plugin_manifest::PluginManifest, tar_path: &PathBuf, release_url_base: &url::Url) -> Result<plugin_manifest::PluginManifest, Error> {
+    let releasified = releasify_url(source, tar_path, release_url_base)?;
+    let package = releasified.packages.into_iter().nth(0).ok_or(anyhow!("there is no package"))?;
+    dest.packages.push(package);
+    Ok(dest)
+}
+
+fn releasify_url(mut source: plugin_manifest::PluginManifest, tar_path: &PathBuf, release_url_base: &url::Url) -> Result<plugin_manifest::PluginManifest, Error> {
+    // We have to go from file://git/hub/stuff/blah.tar.gz -> https://github.com/user/project/releases/download/v<VERSION>>/blah.tar.gz
+    // (e.g. https://github.com/fermyon/spin-js-sdk/releases/download/v0.3.0/js2wasm-v0.3.0-linux-amd64.tar.gz)
+    // So base should be e.g. "https://github.com/fermyon/spin-js-sdk/releases/download/v0.3.0/"
+    let tar_filename = tar_path.file_name().and_then(|n| n.to_str()).ok_or(anyhow!("can't get tar filename"))?;
+    let release_url = release_url_base.join(tar_filename)?;
+
+    let mut package = source.packages.iter_mut().nth(0).ok_or(anyhow!("there is no package"))?;
+    package.url = release_url.to_string();
+    Ok(source)
+}
+
+fn package(cmd: &PluginifyCommand, ps: &PackagingSettings) -> Result<plugin_manifest::PluginPackage, Error> {
+    let os = cmd.os_override.clone().unwrap_or_else(|| std::env::consts::OS.to_owned());
+    let arch = cmd.arch_override.clone().unwrap_or_else(|| std::env::consts::ARCH.to_owned());
+
+    let tar_path = tar_package_source(ps, &os, &arch)?;
 
     let sha256 = file_digest_string(&tar_path)?;
 
     let url = url::Url::from_file_path(&tar_path).unwrap().to_string();  // unwrap because Err(()) doesn't convert to anyhow
 
     Ok(plugin_manifest::PluginPackage {
-        os: plugin_manifest::Os::current(),
-        arch: plugin_manifest::Architecture::current(),
+        os: plugin_manifest::Os::parse(&os)?,
+        arch: plugin_manifest::Architecture::parse(&arch)?,
         url,
         sha256,
     })
 }
 
-fn tar_package_source(ps: &PackagingSettings) -> Result<PathBuf, Error> {
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
+fn tar_package_source(ps: &PackagingSettings, os: &str, arch: &str) -> Result<PathBuf, Error> {
+    let package = infer_package_path(ps);
 
-    let filename = ps.package.file_name().ok_or_else(|| anyhow!("Can't get filename of {}", ps.package.display()))?;
+    let filename = package.file_name().ok_or_else(|| anyhow!("Can't get filename of {}", package.display()))?;
     let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.name, ps.version, os, arch)).absolutize()?.to_path_buf();
 
     let mut writer = std::fs::File::create(&tar_path)?;
@@ -68,7 +190,7 @@ fn tar_package_source(ps: &PackagingSettings) -> Result<PathBuf, Error> {
         let mut enc = GzEncoder::new(&writer, Compression::default());
         {
             let mut tar_builder = tar::Builder::new(&mut enc);
-            tar_builder.append_path_with_name(&ps.package, filename)?;
+            tar_builder.append_path_with_name(&package, filename)?;
             tar_builder.finish()?;
         }
         enc.flush()?;
@@ -76,6 +198,22 @@ fn tar_package_source(ps: &PackagingSettings) -> Result<PathBuf, Error> {
     writer.flush()?;
 
     Ok(tar_path)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
+    ps.package.clone()
+}
+
+#[cfg(target_os = "windows")]
+fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
+    let mut package = ps.package.clone();
+    {
+        if !package.exists() && package.with_extension("exe").exists() {
+            package = package.with_extension("exe");
+        }
+    }
+    package
 }
 
 fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
