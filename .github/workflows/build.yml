@@ -93,14 +93,14 @@ jobs:
         run: echo "RELEASE_VERSION=precanary" >> $GITHUB_ENV
       - name: Download artifacts
         uses: actions/download-artifact@v3
-      # - name: Display structure of downloaded files
-      #   run: ls -R
+      - name: Display structure of downloaded files
+        run: ls -R
       - name: pluginify it
         run: |
           chmod +x ./pluginify/pluginify
           ./pluginify/pluginify --merge --release-url-base https://github.com/itowlson/spin-pluginify/releases/download/${{ env.RELEASE_VERSION }}/ >pluginify.json
-      # - name: Display merged manifest
-      #   run: cat pluginify.json
+      - name: Display merged manifest
+        run: cat pluginify.json
 
       # Handle versioned release
       - name: Upload tars to Github release
