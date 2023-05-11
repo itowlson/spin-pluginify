@@ -1,4 +1,4 @@
-# `spin-pluginify` - a Spin plugin to help build Spin plugins
+# Spin `pluginify` - a Spin plugin to help build Spin plugins
 
 This is a [Spin](https://developer.fermyon.com/spin/index) plugin that helps with the inner loop of Spin plugin development by creating the tar file and manifest for you.
 
@@ -6,8 +6,8 @@ This is a [Spin](https://developer.fermyon.com/spin/index) plugin that helps wit
 
 ```
 cargo build --release
-./target/release/spin-pluginify
-spin plugins install --file spin-pluginify.json --yes
+./target/release/pluginify
+spin plugins install --file pluginify.json --yes
 ```
 
 ## Usage
@@ -24,7 +24,7 @@ license = "Apache-2.0"
 package = "<./PATH/TO/EXECUTABLE>"
 ```
 
-You can find examples in this repo and in https://github.com/itowlson/spin-trigger-sqs-poc.
+You can find examples in this repo and in https://github.com/fermyon/spin-trigger-sqs.
 
 ### Usage
 
