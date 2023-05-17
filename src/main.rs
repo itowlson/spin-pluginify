@@ -6,6 +6,7 @@ use sha2::{Sha256, Digest};
 use std::{path::PathBuf, io::Write};
 
 mod plugin_manifest;
+mod spin;
 
 type Error = anyhow::Error;
 
@@ -36,6 +37,11 @@ struct PluginifyCommand {
     /// Additional logging for diagnostics.
     #[clap(long = "verbose")]
     verbose: bool,
+
+
+    /// Install the plugin when done.
+    #[clap(short, long)]
+    install: bool,
 }
 
 fn main() -> Result<(), Error> {
@@ -75,6 +81,10 @@ impl PluginifyCommand {
 
         if self.verbose {
             eprintln!("Manifest {}created at {}", if manifest_path.exists() { "" } else { "NOT " }, manifest_path.display());
+        }
+
+        if self.install {
+            spin::plugin_install_file(manifest_path)?;
         }
 
         Ok(())
