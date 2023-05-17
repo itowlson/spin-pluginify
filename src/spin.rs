@@ -9,6 +9,7 @@ pub fn plugin_install_file(file: PathBuf) -> Result<(), std::io::Error> {
         .arg("install")
         .arg("--file")
         .arg(file)
+        .arg("--yes")
         .spawn()?
         .wait()?;
 
