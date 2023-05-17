@@ -2,11 +2,6 @@
 
 This is a [Spin](https://developer.fermyon.com/spin/index) plugin that helps with the inner loop of Spin plugin development by creating the tar file and manifest for you.
 
-## Features
-
-* Automates the creation of the tar file and manifest
-* Can be used as a library for Rust build scripts and other plugin tools
-
 ## Prerequisites
 
 * [Rust](https://www.rust-lang.org/tools/install)
