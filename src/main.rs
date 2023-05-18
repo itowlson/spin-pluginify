@@ -15,23 +15,24 @@ mod settings;
 type Error = anyhow::Error;
 
 #[derive(Parser)]
+#[command(author, version, about, long_about)]
 struct PluginifyCommand {
     /// The settings file. Defaults to `spin-pluginify.toml`.
-    #[clap(name = "FILE", short = 'f')]
+    #[arg(name = "FILE", short = 'f')]
     file: Option<PathBuf>,
 
     /// Overrides the inferred OS - useful for cross compile
     /// situations
-    #[clap(long = "os")]
+    #[arg(long = "os")]
     os_override: Option<String>,
 
     /// Overrides the inferred architecture - useful for cross compile
     /// situations
-    #[clap(long = "arch")]
+    #[arg(long = "arch")]
     arch_override: Option<String>,
 
     /// Used in multi-platform scenarios to merge per-platform manifests.
-    #[clap(
+    #[arg(
         name = "MERGE",
         long = "merge",
         conflicts_with = "FILE",
@@ -40,24 +41,32 @@ struct PluginifyCommand {
     merge: bool,
 
     /// Used in multi-platform scenarios to merge per-platform manifests.
-    #[clap(name = "URL_BASE", long = "release-url-base", requires = "MERGE")]
+    #[arg(name = "URL_BASE", long = "release-url-base", requires = "MERGE")]
     release_url_base: Option<url::Url>,
 
     /// Additional logging for diagnostics.
-    #[clap(long = "verbose")]
+    #[arg(long = "verbose")]
     verbose: bool,
 
     /// Install the plugin when done.
-    #[clap(short, long)]
+    #[arg(short, long)]
     install: bool,
 
     /// Run the plugin when done.
-    #[clap(short, long)]
+    #[arg(short, long)]
     run: bool,
 
-    /// Uninstall the plugin when done.
-    #[clap(short, long)]
+    /// Uninstall the plugin before installing if `--install` is specified.
+    /// Uninstall the plugin after running if `--run` is specified.
+    /// Both `--install` and `--run` can be specified, in which case the plugin
+    /// will be uninstalled before installing and after running. This is useful
+    /// for testing in a CI.
+    #[arg(short, long, requires = "install")]
     uninstall: bool,
+
+    /// The args to run the plugin with if `--run` is specified.
+    #[arg(last = true, requires = "run")]
+    run_args: Vec<String>,
 }
 
 fn main() -> Result<(), Error> {
@@ -93,15 +102,17 @@ impl PluginifyCommand {
         }
 
         if self.install {
+            if self.uninstall {
+                spin.plugin_uninstall(&ps.plugin_name())?;
+            }
             spin.plugin_install_file(ps.manifest_path())?;
         }
 
         if self.run {
-            spin.plugin_run(&ps.plugin_name())?;
-        }
-
-        if self.uninstall {
-            spin.plugin_uninstall(&ps.plugin_name())?;
+            spin.plugin_run(&ps.plugin_name(), &self.run_args)?;
+            if self.uninstall {
+                spin.plugin_uninstall(&ps.plugin_name())?;
+            }
         }
 
         Ok(())

@@ -28,9 +28,10 @@ impl Spin {
         Ok(())
     }
 
-    pub fn plugin_run(&self, name: &str) -> Result<(), std::io::Error> {
+    pub fn plugin_run(&self, name: &str, args: &Vec<String>) -> Result<(), std::io::Error> {
         self.command()
             .arg(name)
+            .args(args)
             .spawn()?
             .wait()?;
 

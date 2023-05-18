@@ -45,13 +45,14 @@ Your plugin should then be installed in Spin and ready to test.
 
 ```mermaid
 flowchart LR
-    pluginify --> install
+    pluginify --> uninstall
+    uninstall --> install
     install --> run
     run --> uninstall
     uninstall --> pluginify
 ```
 
-To test your plugin, you can use `spin pluginify -iru` to install, run, and uninstall your plugin in one go. This is useful for testing your plugin in a clean environment.
+To test your plugin, you can use `spin pluginify -iru` to uninstall, install, run, and again uninstall your plugin in one go. This is useful for testing your plugin in a clean environment.
 
 That's a shortcut for:
 
@@ -63,9 +64,16 @@ Which in turn should be roughly equivalent to:
 
 ```bash
 spin pluginify
+spin plugins uninstall my-plugin
 spin plugins install --file my-plugin.json --yes
 spin my-plugin
 spin plugins uninstall my-plugin
+```
+
+If your plugin takes arguments, you should specify them last in the command line after `--`:
+
+```bash
+spin pluginify --install --run --uninstall -- --my-arg
 ```
 
 ## Troubleshooting
