@@ -1,21 +1,34 @@
+use std::env::var;
+use std::env::VarError;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
+use std::process::ExitStatus;
+
+/// Environment variable name for the Spin binary path.
+pub const BIN_PATH: &str = "SPIN_BIN_PATH";
 
 pub struct Spin {
-    bin: String
+    bin: PathBuf,
+}
+
+impl Default for Spin {
+    fn default() -> Self {
+        Self { bin: "spin".into() }
+    }
 }
 
 impl Spin {
-    pub fn new() -> Self {
-        let bin = std::env::var("SPIN_BIN_PATH").unwrap_or("spin".to_string());
-        Self { bin: bin.into() }
+    pub fn current() -> Result<Self, VarError> {
+        let bin = var(BIN_PATH)?;
+        Ok(Self { bin: bin.into() })
     }
 
     pub fn command(&self) -> Command {
         Command::new(&self.bin)
     }
 
-    pub fn plugin_install_file(&self, file: impl AsRef<Path>) -> Result<(), std::io::Error> {
+    pub fn plugin_install_file(&self, file: impl AsRef<Path>) -> Result<ExitStatus, std::io::Error> {
         self.command()
             .arg("plugin")
             .arg("install")
@@ -23,29 +36,6 @@ impl Spin {
             .arg(file.as_ref())
             .arg("--yes")
             .spawn()?
-            .wait()?;
-
-        Ok(())
-    }
-
-    pub fn plugin_run(&self, name: &str, args: &Vec<String>) -> Result<(), std::io::Error> {
-        self.command()
-            .arg(name)
-            .args(args)
-            .spawn()?
-            .wait()?;
-
-        Ok(())
-    }
-
-    pub fn plugin_uninstall(&self, name: &str) -> Result<(), std::io::Error> {
-        self.command()
-            .arg("plugin")
-            .arg("uninstall")
-            .arg(name)
-            .spawn()?
-            .wait()?;
-
-        Ok(())
+            .wait()
     }
 }

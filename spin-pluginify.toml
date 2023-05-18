@@ -2,4 +2,9 @@ name = "pluginify"
 version = "0.4"
 spin_compatibility = ">=0.7"
 license = "Apache-2.0"
+
 package = "./target/release/pluginify"
+
+[build]
+command = "cargo"
+args = ["build", "--release"]

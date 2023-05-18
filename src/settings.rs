@@ -2,8 +2,7 @@ use std::path::PathBuf;
 
 use crate::plugin_manifest::PluginManifest;
 use crate::plugin_manifest::PluginPackage;
-
-
+use crate::target::Target;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -15,12 +14,17 @@ pub struct PackagingSettings {
     description: Option<String>,
     spin_compatibility: String,
     license: String,
-    package: PathBuf,
+    #[serde(flatten)]
+    target: Target
 }
 
 impl PackagingSettings {
     pub fn from_str(s: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(&s)
+    }
+
+    pub fn target(&self) -> &Target {
+        &self.target
     }
 
     pub fn plugin_name(&self) -> String {
@@ -49,22 +53,6 @@ impl PackagingSettings {
 
     pub fn manifest_path(&self) -> PathBuf {
         PathBuf::from(&self.plugin_name()).with_extension("json")
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    pub fn infer_package_path(&self) -> PathBuf {
-        self.package.clone()
-    }
-
-    #[cfg(target_os = "windows")]
-    pub fn infer_package_path(&self) -> PathBuf {
-        let mut package = self.package.clone();
-        {
-            if !package.exists() && package.with_extension("exe").exists() {
-                package = package.with_extension("exe");
-            }
-        }
-        package
     }
 }
 

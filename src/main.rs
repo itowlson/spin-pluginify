@@ -11,26 +11,24 @@ use std::{path::PathBuf, io::Write};
 mod plugin_manifest;
 mod spin;
 mod settings;
+mod task;
+mod target;
 
 type Error = anyhow::Error;
-
 #[derive(Parser)]
 #[command(author, version, about, long_about)]
 struct PluginifyCommand {
     /// The settings file. Defaults to `spin-pluginify.toml`.
-    #[arg(name = "FILE", short = 'f')]
+    #[arg(long, short, name = "FILE")]
     file: Option<PathBuf>,
-
     /// Overrides the inferred OS - useful for cross compile
     /// situations
     #[arg(long = "os")]
     os_override: Option<String>,
-
     /// Overrides the inferred architecture - useful for cross compile
     /// situations
     #[arg(long = "arch")]
     arch_override: Option<String>,
-
     /// Used in multi-platform scenarios to merge per-platform manifests.
     #[arg(
         name = "MERGE",
@@ -39,34 +37,15 @@ struct PluginifyCommand {
         requires = "URL_BASE"
     )]
     merge: bool,
-
     /// Used in multi-platform scenarios to merge per-platform manifests.
     #[arg(name = "URL_BASE", long = "release-url-base", requires = "MERGE")]
     release_url_base: Option<url::Url>,
-
     /// Additional logging for diagnostics.
-    #[arg(long = "verbose")]
+    #[arg(short, long)]
     verbose: bool,
-
     /// Install the plugin when done.
     #[arg(short, long)]
     install: bool,
-
-    /// Run the plugin when done.
-    #[arg(short, long)]
-    run: bool,
-
-    /// Uninstall the plugin before installing if `--install` is specified.
-    /// Uninstall the plugin after running if `--run` is specified.
-    /// Both `--install` and `--run` can be specified, in which case the plugin
-    /// will be uninstalled before installing and after running. This is useful
-    /// for testing in a CI.
-    #[arg(short, long, requires = "install")]
-    uninstall: bool,
-
-    /// The args to run the plugin with if `--run` is specified.
-    #[arg(last = true, requires = "run")]
-    run_args: Vec<String>,
 }
 
 fn main() -> Result<(), Error> {
@@ -80,11 +59,26 @@ fn main() -> Result<(), Error> {
 
 impl PluginifyCommand {
     fn run_local(&self) -> Result<(), Error> {
-        let spin = Spin::new();
+        let spin = Spin::current().unwrap_or_default();
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
         let text = std::fs::read_to_string(&file)?;
 
         let ps = PackagingSettings::from_str(&text)?;
+
+        match ps.target().build().run() {
+            Ok(code) => {
+                if code.success() {
+                    eprintln!("Build succeeded");
+                } else {
+                    eprintln!("Build failed: {code}");
+                    std::process::exit(code.code().unwrap_or(1));
+                }
+            },
+            Err(error) => {
+                eprintln!("Build failed: {error}");
+                std::process::exit(1);
+            }
+        }
 
         let package = self.package(&ps)?;
 
@@ -102,17 +96,7 @@ impl PluginifyCommand {
         }
 
         if self.install {
-            if self.uninstall {
-                spin.plugin_uninstall(&ps.plugin_name())?;
-            }
             spin.plugin_install_file(ps.manifest_path())?;
-        }
-
-        if self.run {
-            spin.plugin_run(&ps.plugin_name(), &self.run_args)?;
-            if self.uninstall {
-                spin.plugin_uninstall(&ps.plugin_name())?;
-            }
         }
 
         Ok(())
@@ -236,7 +220,7 @@ impl PluginifyCommand {
     }
 
     fn tar_package_source(&self, ps: &PackagingSettings, os: &str, arch: &str) -> Result<PathBuf, Error> {
-        let package = ps.infer_package_path();
+        let package = ps.target().infer_package_path();
         if self.verbose {
             eprintln!("Expecting package at {}", package.display());
             eprintln!("...package exists = {}", package.exists());
