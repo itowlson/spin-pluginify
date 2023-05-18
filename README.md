@@ -41,6 +41,33 @@ If you want to save keystrokes, you can use `spin pluginify --install` to do bot
 
 Your plugin should then be installed in Spin and ready to test.
 
+### Testing
+
+```mermaid
+flowchart LR
+    pluginify --> install
+    install --> run
+    run --> uninstall
+    uninstall --> pluginify
+```
+
+To test your plugin, you can use `spin pluginify -iru` to install, run, and uninstall your plugin in one go. This is useful for testing your plugin in a clean environment.
+
+That's a shortcut for:
+
+```bash
+spin pluginify --install --run --uninstall
+```
+
+Which in turn should be roughly equivalent to:
+
+```bash
+spin pluginify
+spin plugins install --file my-plugin.json --yes
+spin my-plugin
+spin plugins uninstall my-plugin
+```
+
 ## Troubleshooting
 
 Error handling is non-existent right now so, uh, sorry.

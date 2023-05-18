@@ -2,11 +2,15 @@ use anyhow::{anyhow, Context};
 use clap::Parser;
 use flate2::{write::GzEncoder, Compression};
 use path_absolutize::Absolutize;
+use plugin_manifest::PluginManifest;
+use settings::PackagingSettings;
 use sha2::{Sha256, Digest};
+use spin::Spin;
 use std::{path::PathBuf, io::Write};
 
 mod plugin_manifest;
 mod spin;
+mod settings;
 
 type Error = anyhow::Error;
 
@@ -27,7 +31,12 @@ struct PluginifyCommand {
     arch_override: Option<String>,
 
     /// Used in multi-platform scenarios to merge per-platform manifests.
-    #[clap(name = "MERGE", long = "merge", conflicts_with = "FILE", requires = "URL_BASE")]
+    #[clap(
+        name = "MERGE",
+        long = "merge",
+        conflicts_with = "FILE",
+        requires = "URL_BASE"
+    )]
     merge: bool,
 
     /// Used in multi-platform scenarios to merge per-platform manifests.
@@ -38,10 +47,17 @@ struct PluginifyCommand {
     #[clap(long = "verbose")]
     verbose: bool,
 
-
     /// Install the plugin when done.
     #[clap(short, long)]
     install: bool,
+
+    /// Run the plugin when done.
+    #[clap(short, long)]
+    run: bool,
+
+    /// Uninstall the plugin when done.
+    #[clap(short, long)]
+    uninstall: bool,
 }
 
 fn main() -> Result<(), Error> {
@@ -55,36 +71,37 @@ fn main() -> Result<(), Error> {
 
 impl PluginifyCommand {
     fn run_local(&self) -> Result<(), Error> {
+        let spin = Spin::new();
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
         let text = std::fs::read_to_string(&file)?;
 
-        let ps: PackagingSettings = toml::from_str(&text)?;
+        let ps = PackagingSettings::from_str(&text)?;
 
         let package = self.package(&ps)?;
 
-        let manifest = plugin_manifest::PluginManifest {
-            name: ps.name.clone(),
-            version: ps.version.clone(),
-            description: ps.description.clone(),
-            homepage: ps.homepage.clone(),
-            spin_compatibility: ps.spin_compatibility.clone(),
-            license: ps.license.clone(),
-            packages: vec![package],
-        };
+        let manifest = PluginManifest::new(&ps, [package]);
 
         let manifest_json = serde_json::to_string_pretty(&manifest)?;
         if self.verbose {
             eprintln!("Manifest JSON:\n{manifest_json}");
         }
-        let manifest_path = PathBuf::from(&ps.name).with_extension("json");
-        std::fs::write(&manifest_path, manifest_json)?;
+
+        std::fs::write(&ps.manifest_path(), manifest_json)?;
 
         if self.verbose {
-            eprintln!("Manifest {}created at {}", if manifest_path.exists() { "" } else { "NOT " }, manifest_path.display());
+            eprintln!("Manifest {}created at {}", if ps.manifest_path().exists() { "" } else { "NOT " }, ps.manifest_path().display());
         }
 
         if self.install {
-            spin::plugin_install_file(manifest_path)?;
+            spin.plugin_install_file(ps.manifest_path())?;
+        }
+
+        if self.run {
+            spin.plugin_run(&ps.plugin_name())?;
+        }
+
+        if self.uninstall {
+            spin.plugin_uninstall(&ps.plugin_name())?;
         }
 
         Ok(())
@@ -208,14 +225,14 @@ impl PluginifyCommand {
     }
 
     fn tar_package_source(&self, ps: &PackagingSettings, os: &str, arch: &str) -> Result<PathBuf, Error> {
-        let package = infer_package_path(ps);
+        let package = ps.infer_package_path();
         if self.verbose {
             eprintln!("Expecting package at {}", package.display());
             eprintln!("...package exists = {}", package.exists());
         }
 
         let filename = package.file_name().ok_or_else(|| anyhow!("Can't get filename of {}", package.display()))?;
-        let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.name, ps.version, os, arch)).absolutize()?.to_path_buf();
+        let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.plugin_name(), ps.plugin_version(), os, arch)).absolutize()?.to_path_buf();
         if self.verbose {
             eprintln!("About to create tar archive at {}", tar_path.display());
         }
@@ -249,22 +266,6 @@ struct MergeFiles {
     tar: PathBuf,
 }
 
-#[cfg(not(target_os = "windows"))]
-fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
-    ps.package.clone()
-}
-
-#[cfg(target_os = "windows")]
-fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
-    let mut package = ps.package.clone();
-    {
-        if !package.exists() && package.with_extension("exe").exists() {
-            package = package.with_extension("exe");
-        }
-    }
-    package
-}
-
 fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
     let mut file = std::fs::File::open(path)
         .with_context(|| format!("Could not open file at {}", path.display()))?;
@@ -273,17 +274,4 @@ fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
     let digest_value = sha.finalize();
     let digest_string = format!("{:x}", digest_value);
     Ok(digest_string)
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-struct PackagingSettings {
-    name: String,
-    version: String,
-    // base_uri: String,
-    homepage: Option<String>,
-    description: Option<String>,
-    spin_compatibility: String,
-    license: String,
-    package: PathBuf,
 }
