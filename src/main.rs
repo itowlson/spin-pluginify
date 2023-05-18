@@ -6,6 +6,7 @@ use sha2::{Sha256, Digest};
 use std::{path::PathBuf, io::Write};
 
 mod plugin_manifest;
+mod spin;
 
 type Error = anyhow::Error;
 
@@ -36,6 +37,11 @@ struct PluginifyCommand {
     /// Additional logging for diagnostics.
     #[clap(long = "verbose")]
     verbose: bool,
+
+
+    /// Install the plugin when done.
+    #[clap(short, long)]
+    install: bool,
 }
 
 fn main() -> Result<(), Error> {
@@ -75,6 +81,10 @@ impl PluginifyCommand {
 
         if self.verbose {
             eprintln!("Manifest {}created at {}", if manifest_path.exists() { "" } else { "NOT " }, manifest_path.display());
+        }
+
+        if self.install {
+            spin::plugin_install_file(manifest_path)?;
         }
 
         Ok(())
@@ -163,7 +173,7 @@ impl PluginifyCommand {
         let tar_filename = tar_path.file_name().and_then(|n| n.to_str()).ok_or(anyhow!("can't get tar filename"))?;
         let release_url = release_url_base.join(tar_filename)?;
 
-        let mut package = source.packages.iter_mut().nth(0).ok_or(anyhow!("there is no package"))?;
+        let package = source.packages.iter_mut().nth(0).ok_or(anyhow!("there is no package"))?;
         package.url = release_url.to_string();
         Ok(source)
     }
