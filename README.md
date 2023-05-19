@@ -25,13 +25,21 @@ version = "0.1"
 spin_compatibility = ">=0.7"
 license = "Apache-2.0"
 package = "<./PATH/TO/EXECUTABLE>"
-
-[build]
-command = "<COMMAND TO BUILD YOUR EXECUTABLE>"
-args = "<ARGUMENTS TO BUILD YOUR EXECUTABLE>"
 ```
 
 You can find examples in this repo and in <https://github.com/fermyon/spin-trigger-sqs>.
+
+### Building
+
+Pluginify can build your plugin's executable for you if you include a `build` section in your `spin-pluginify.toml`:
+
+```toml
+[build]
+command = "cargo"
+args = ["build", "--release"]
+```
+
+This is optional, but if you don't include it, you'll need to build your plugin's executable yourself before running `spin pluginify`, ensure it's up to date and in the path you specified in `package`.
 
 ### Updating
 

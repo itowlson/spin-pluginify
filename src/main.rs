@@ -60,13 +60,15 @@ fn main() -> Result<(), Error> {
 
 impl PluginifyCommand {
     fn run_local(&self) -> Result<(), Error> {
-        let spin = Spin::current()?;
+        let spin = Spin::current().unwrap_or_default();
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
         let text = std::fs::read_to_string(&file)?;
 
         let ps = PackagingSettings::from_str(&text)?;
 
-        ps.target().build().run()?;
+        if let Some(build) = ps.target().build() {
+            build.run()?;
+        }
 
         let package = self.package(&ps)?;
 

@@ -12,6 +12,14 @@ pub struct Spin {
     bin: PathBuf,
 }
 
+impl Default for Spin {
+    fn default() -> Self {
+        Self {
+            bin: PathBuf::from("spin"),
+        }
+    }
+}
+
 impl From<PathBuf> for Spin {
     fn from(bin: PathBuf) -> Self {
         Self { bin }

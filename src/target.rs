@@ -5,8 +5,7 @@ use crate::task::Task;
 #[derive(Debug, serde::Deserialize)]
 pub struct Target {
     package: PathBuf,
-    #[serde(default)]
-    build: Task,
+    build: Option<Task>,
 }
 
 impl Target {
@@ -14,8 +13,8 @@ impl Target {
         &self.package
     }
 
-    pub fn build(&self) -> &Task {
-        &self.build
+    pub fn build(&self) -> Option<&Task> {
+        self.build.as_ref()
     }
 
     #[cfg(not(target_os = "windows"))]
