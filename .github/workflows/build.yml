@@ -59,7 +59,7 @@ jobs:
         run: cargo build
       - name: Pluginify - use native executable to pluginify aarch64 executable
         if: ${{ matrix.config.arch != 'amd64' }}
-        run: ./target/debug/self-pluginify --arch ${{ matrix.config.arch }}
+        run: ./target/debug/pluginify --arch ${{ matrix.config.arch }}
 
       # Special treatment for this because we need it for the merge
       - name: Archive Linux executable
