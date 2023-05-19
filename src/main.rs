@@ -6,6 +6,7 @@ use plugin_manifest::PluginManifest;
 use settings::PackagingSettings;
 use sha2::{Sha256, Digest};
 use spin::Spin;
+use std::path::Path;
 use std::{path::PathBuf, io::Write};
 
 mod plugin_manifest;
@@ -59,26 +60,13 @@ fn main() -> Result<(), Error> {
 
 impl PluginifyCommand {
     fn run_local(&self) -> Result<(), Error> {
-        let spin = Spin::current().unwrap_or_default();
+        let spin = Spin::current()?;
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
         let text = std::fs::read_to_string(&file)?;
 
         let ps = PackagingSettings::from_str(&text)?;
 
-        match ps.target().build().run() {
-            Ok(code) => {
-                if code.success() {
-                    eprintln!("Build succeeded");
-                } else {
-                    eprintln!("Build failed: {code}");
-                    std::process::exit(code.code().unwrap_or(1));
-                }
-            },
-            Err(error) => {
-                eprintln!("Build failed: {error}");
-                std::process::exit(1);
-            }
-        }
+        ps.target().build().run()?;
 
         let package = self.package(&ps)?;
 
@@ -261,7 +249,7 @@ struct MergeFiles {
     tar: PathBuf,
 }
 
-fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
+fn file_digest_string(path: &Path) -> Result<String, Error> {
     let mut file = std::fs::File::open(path)
         .with_context(|| format!("Could not open file at {}", path.display()))?;
     let mut sha = Sha256::new();

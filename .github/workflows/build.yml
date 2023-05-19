@@ -44,19 +44,22 @@ jobs:
       - name: Copy plugin binary to standard location
         shell: bash
         run: cp target/${{ matrix.config.target }}/release/pluginify${{ matrix.config.extension }} target/release/pluginify${{ matrix.config.extension }}
+      - name: Duplicate plugin binary for self-pluginification
+        shell: bash
+        run: cp target/release/pluginify${{ matrix.config.extension }} target/release/self-pluginify${{ matrix.config.extension }} 
 
       # We cannot self-pluginify on aarch64 because binaries won't run on the runner
       # (the runner is always x86).  For other plugins, that wouldn't be an issue.
       # So we'd like to set the merge pattern to fit that scenario.  So... we'll cheat.
       - name: Pluginify - self-pluginify
         if: ${{ matrix.config.arch == 'amd64' }}
-        run: ./target/release/pluginify
+        run: ./target/release/self-pluginify
       - name: Pluginify - build native executable
         if: ${{ matrix.config.arch != 'amd64' }}
         run: cargo build
       - name: Pluginify - use native executable to pluginify aarch64 executable
         if: ${{ matrix.config.arch != 'amd64' }}
-        run: ./target/debug/pluginify --arch ${{ matrix.config.arch }}
+        run: ./target/debug/self-pluginify --arch ${{ matrix.config.arch }}
 
       # Special treatment for this because we need it for the merge
       - name: Archive Linux executable

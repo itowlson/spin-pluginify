@@ -12,9 +12,9 @@ pub struct Spin {
     bin: PathBuf,
 }
 
-impl Default for Spin {
-    fn default() -> Self {
-        Self { bin: "spin".into() }
+impl From<PathBuf> for Spin {
+    fn from(bin: PathBuf) -> Self {
+        Self { bin }
     }
 }
 
