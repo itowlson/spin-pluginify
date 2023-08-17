@@ -34,7 +34,7 @@ You can find examples in this repo and in https://github.com/fermyon/spin-trigge
 When you have a new build of your plugin ready:
 
 * Run `spin pluginify`
-  * It should create or update a `.tar.gz` file and a `<PLUGIN-NAME>.json` manifest
+  * It should create or update a `<PLUGIN-NAME>.tar.gz` file and a `<PLUGIN-NAME>.json` manifest
 * Run `spin plugins install --file <PLUGIN-NAME>.json --yes`
 
 If you want to save keystrokes, you can use `spin pluginify --install` to do both steps at once.
