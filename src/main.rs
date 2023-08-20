@@ -56,7 +56,10 @@ fn main() -> Result<(), Error> {
 impl PluginifyCommand {
     fn run_local(&self) -> Result<(), Error> {
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
-        let text = std::fs::read_to_string(&file)?;
+        let text = match std::fs::read_to_string(&file) {
+            Ok(file) => file,
+            Err(error) => anyhow::bail!("Cannot read settings file {}: {}", file.display(), error),
+        };
 
         let ps: PackagingSettings = toml::from_str(&text)?;
 
