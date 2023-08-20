@@ -217,14 +217,23 @@ impl PluginifyCommand {
             eprintln!("...package exists = {}", package.exists());
         }
 
-        let filename = package.file_name().ok_or_else(|| anyhow!("Can't get filename of {}", package.display()))?;
         let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.name, ps.version, os, arch)).absolutize()?.to_path_buf();
         if self.verbose {
             eprintln!("About to create tar archive at {}", tar_path.display());
         }
 
+        // Use the plugin name for appending to the tar archive
+        // Determine if an extension is needed per the package executable
+        let name = match package.extension() {
+            Some(ext) => match ext.to_str() {
+                Some(ext) => ps.name.clone() + "." + ext,
+                None => ps.name.clone()
+            },
+            None => ps.name.clone()
+        };
+
         if self.verbose {
-            eprintln!("Appending {} with name {:?}", package.display(), filename);
+            eprintln!("Appending {} with name {:?}", package.display(), name);
         }
 
         let mut writer = std::fs::File::create(&tar_path)?;
@@ -232,7 +241,7 @@ impl PluginifyCommand {
             let mut enc = GzEncoder::new(&writer, Compression::default());
             {
                 let mut tar_builder = tar::Builder::new(&mut enc);
-                tar_builder.append_path_with_name(&package, filename)?;
+                tar_builder.append_path_with_name(&package, &name)?;
                 tar_builder.finish()?;
             }
             enc.flush()?;
@@ -240,7 +249,7 @@ impl PluginifyCommand {
         writer.flush()?;
 
         if self.verbose {
-            eprintln!("Appended {} with name {:?}", package.display(), filename);
+            eprintln!("Appended {} with name {:?}", package.display(), name);
         }
 
         Ok(tar_path)
