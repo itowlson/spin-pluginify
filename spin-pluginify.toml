@@ -1,5 +1,6 @@
 name = "pluginify"
-version = "0.5.0"
+description = "Package Spin plugins for faster iteration"
+version = "0.6.0"
 spin_compatibility = ">=0.7"
 license = "Apache-2.0"
 package = "./target/release/pluginify"
