@@ -25,6 +25,8 @@ version = "0.1"
 spin_compatibility = ">=0.7"
 license = "Apache-2.0"
 package = "<./PATH/TO/EXECUTABLE>"
+# optional - if present these files will be added to the plugin tar file
+assets = [ "path/to/asset/1", "path/to/asset/2" ]
 ```
 
 You can find examples in this repo and in https://github.com/fermyon/spin-trigger-sqs.
