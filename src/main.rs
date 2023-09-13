@@ -242,6 +242,9 @@ impl PluginifyCommand {
             {
                 let mut tar_builder = tar::Builder::new(&mut enc);
                 tar_builder.append_path_with_name(&package, &name)?;
+                for asset in ps.assets() {
+                    tar_builder.append_path(asset).with_context(|| format!("Adding {}", asset.display()))?;
+                }
                 tar_builder.finish()?;
             }
             enc.flush()?;
@@ -298,4 +301,11 @@ struct PackagingSettings {
     spin_compatibility: String,
     license: String,
     package: PathBuf,
+    assets: Option<Vec<PathBuf>>,
+}
+
+impl PackagingSettings {
+    fn assets(&self) -> &[PathBuf] {
+        self.assets.as_deref().unwrap_or_default()
+    }
 }
