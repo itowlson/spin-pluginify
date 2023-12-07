@@ -264,12 +264,6 @@ struct MergeFiles {
     tar: PathBuf,
 }
 
-#[cfg(not(target_os = "windows"))]
-fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
-    ps.package.clone()
-}
-
-#[cfg(target_os = "windows")]
 fn infer_package_path(ps: &PackagingSettings) -> PathBuf {
     let mut package = ps.package.clone();
     {
