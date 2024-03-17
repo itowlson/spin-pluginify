@@ -16,6 +16,10 @@ struct PluginifyCommand {
     #[clap(name = "FILE", short = 'f')]
     file: Option<PathBuf>,
 
+    /// Specifies to pluginify the given binary without using a settings file.
+    #[clap(name = "BINARY", long = "immediate", conflicts_with = "FILE", conflicts_with = "MERGE")]
+    immediate: Option<PathBuf>,
+
     /// Overrides the inferred OS - useful for cross compile
     /// situations
     #[clap(long = "os")]
@@ -54,7 +58,22 @@ fn main() -> Result<(), Error> {
 }
 
 impl PluginifyCommand {
-    fn run_local(&self) -> Result<(), Error> {
+    fn packaging_settings(&self) -> Result<PackagingSettings, Error> {
+        if let Some(binary) = self.immediate.as_ref() {
+            let rnd: u16 = rand::random();
+            let ps = PackagingSettings {
+                name: binary.file_stem().context("no file stem")?.to_string_lossy().to_string(),
+                version: format!("99.99.99-pre{rnd}"),
+                homepage: None,
+                description: None,
+                spin_compatibility: ">=2.0".to_string(),
+                license: "Apache-2.0".to_string(),
+                package: binary.to_owned(),
+                assets: None,
+            };
+            return Ok(ps);
+        }
+
         let file = self.file.clone().unwrap_or_else(|| PathBuf::from("spin-pluginify.toml"));
         let text = match std::fs::read_to_string(&file) {
             Ok(file) => file,
@@ -62,6 +81,11 @@ impl PluginifyCommand {
         };
 
         let ps: PackagingSettings = toml::from_str(&text)?;
+        Ok(ps)
+    }
+
+    fn run_local(&self) -> Result<(), Error> {
+        let ps = self.packaging_settings()?;
 
         let package = self.package(&ps)?;
 
