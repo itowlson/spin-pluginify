@@ -267,7 +267,12 @@ impl PluginifyCommand {
                 let mut tar_builder = tar::Builder::new(&mut enc);
                 tar_builder.append_path_with_name(&package, &name)?;
                 for asset in ps.assets() {
-                    tar_builder.append_path(asset).with_context(|| format!("Adding {}", asset.display()))?;
+                    if asset.is_dir() {
+                        tar_builder.append_dir_all(asset, asset)
+                        .with_context(|| format!("Adding {}", asset.display()))?;
+                    } else {
+                        tar_builder.append_path(asset).with_context(|| format!("Adding {}", asset.display()))?;
+                    }
                 }
                 tar_builder.finish()?;
             }
