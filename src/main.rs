@@ -111,7 +111,7 @@ impl PluginifyCommand {
         }
 
         if self.install {
-            spin::plugin_install_file(manifest_path)?;
+            spin::plugin_install_file(&manifest.name, manifest_path)?;
         }
 
         Ok(())
