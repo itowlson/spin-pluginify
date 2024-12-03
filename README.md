@@ -4,18 +4,29 @@ This is a [Spin](https://developer.fermyon.com/spin/index) plugin that helps wit
 
 ## Prerequisites
 
-* [Rust](https://www.rust-lang.org/tools/install)
+* [Rust](https://www.rust-lang.org/tools/install) if building from source
 * [Spin](https://developer.fermyon.com/spin/install)
 
-## Installation
+# Installation
+
+Latest release:
 
 ```bash
-cargo run -r -- --install
+spin plugins install pluginify
 ```
 
-## Usage
+From source:
 
-### Preparation
+```bash
+git checkout https://github.com/itowlson/spin-pluginify
+cd spin-pluginify
+cargo build --release
+./target/release/pluginify --install
+```
+
+# Usage
+
+## Preparation
 
 For your plugin, create a `spin-pluginify.toml` file with the following content:
 
@@ -31,18 +42,24 @@ assets = [ "path/to/asset/1", "path/to/asset/2" ]
 
 You can find examples in this repo and in https://github.com/fermyon/spin-trigger-sqs.
 
-### Updating
+## Packaging and installing your plugin
 
-When you have a new build of your plugin ready:
+When you have a new build of your plugin ready, run:
 
-* Run `spin pluginify`
-  * It should create or update a `<PLUGIN-NAME>.tar.gz` file and a `<PLUGIN-NAME>.json` manifest
-* Run `spin plugins install --file <PLUGIN-NAME>.json --yes`
-
-If you want to save keystrokes, you can use `spin pluginify --install` to do both steps at once.
+```bash
+spin pluginify --install
+```
 
 Your plugin should then be installed in Spin and ready to test.
 
-## Troubleshooting
+Alternatively, you can just package by running `spin pluginify`. This creates (or updates) a `<PLUGIN-NAME>.tar.gz` file and a `<PLUGIN-NAME>.json` manifest. You can then run `spin plugins install --file <PLUGIN-NAME>.json --yes` to install that package into Spin.
 
-Error handling is non-existent right now so, uh, sorry.
+## "I want it NOW" mode
+
+To install an executable as a Spin plugin without creating a `spin-pluginify.toml`, run `spin pluginify --immediate <PATH/TO/EXECUTABLE> --install`.
+
+(This is great for one-off experiments, but if you're iterating on the plugin then create a `spin-pluginify.toml` and save yourself typing the path all the time eh.)
+
+# Troubleshooting
+
+Error handling is a bit patchy at the moment. Please raise an issue if you find an error which is cryptic, or panicky, or shouldn't be an error at all!
