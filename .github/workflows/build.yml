@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { target: "x86_64-unknown-linux-gnu", os: "ubuntu-20.04", arch: "amd64", extension: "" }
-          - { target: "aarch64-unknown-linux-gnu", os: "ubuntu-20.04", arch: "aarch64", extension: "" }
+          - { target: "x86_64-unknown-linux-gnu", os: "ubuntu-22.04", arch: "amd64", extension: "" }
+          - { target: "aarch64-unknown-linux-gnu", os: "ubuntu-22.04", arch: "aarch64", extension: "" }
           - { target: "x86_64-apple-darwin", os: "macos-latest", arch: "amd64", extension: "" }
           - { target: "aarch64-apple-darwin", os: "macos-latest", arch: "aarch64", extension: "" }
           - { target: "x86_64-pc-windows-msvc", os: "windows-latest", arch: "amd64", extension: ".exe" }
@@ -61,12 +61,12 @@ jobs:
       # Special treatment for this because we need it for the merge
       - name: Archive Linux executable
         if: ${{ matrix.config.target == 'x86_64-unknown-linux-gnu' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pluginify
           path: target/release/pluginify
       - name: Archive pluginified
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pluginify-${{ matrix.config.os }}-${{ matrix.config.arch }}
           path: |
@@ -92,7 +92,9 @@ jobs:
         shell: bash
         run: echo "RELEASE_VERSION=precanary" >> $GITHUB_ENV
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
+        with:
+          pattern: pluginify*
       - name: Display structure of downloaded files
         run: ls -R
       - name: pluginify it
