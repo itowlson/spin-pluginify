@@ -61,12 +61,12 @@ jobs:
       # Special treatment for this because we need it for the merge
       - name: Archive Linux executable
         if: ${{ matrix.config.target == 'x86_64-unknown-linux-gnu' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pluginify
           path: target/release/pluginify
       - name: Archive pluginified
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pluginify-${{ matrix.config.os }}-${{ matrix.config.arch }}
           path: |
@@ -92,7 +92,9 @@ jobs:
         shell: bash
         run: echo "RELEASE_VERSION=precanary" >> $GITHUB_ENV
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
+        with:
+          pattern: pluginify*
       - name: Display structure of downloaded files
         run: ls -R
       - name: pluginify it
