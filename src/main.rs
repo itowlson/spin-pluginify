@@ -10,7 +10,22 @@ mod spin;
 
 type Error = anyhow::Error;
 
+/// Returns build information, similar to: 0.1.0 (2be4034 2022-03-31).
+pub const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (",
+    env!("VERGEN_GIT_SHA"),
+    " ",
+    env!("VERGEN_GIT_COMMIT_DATE"),
+    ")"
+);
+
 #[derive(Parser)]
+#[clap(author, version = VERSION, about, long_about = None)]
+#[clap(
+    propagate_version = true,
+    about = "Package Spin plugins for faster iteration"
+)]
 struct PluginifyCommand {
     /// The settings file. Defaults to `spin-pluginify.toml`.
     #[clap(name = "FILE", short = 'f')]
@@ -41,7 +56,6 @@ struct PluginifyCommand {
     /// Additional logging for diagnostics.
     #[clap(long = "verbose")]
     verbose: bool,
-
 
     /// Install the plugin when done.
     #[clap(short, long)]
