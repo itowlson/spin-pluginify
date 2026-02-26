@@ -1,6 +1,6 @@
 name = "pluginify"
 description = "Package Spin plugins for faster iteration"
-version = "0.9.0"
+version = { from = "Cargo.toml" }
 spin_compatibility = ">=0.7"
 license = "Apache-2.0"
 package = "./target/release/pluginify"
