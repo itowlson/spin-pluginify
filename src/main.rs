@@ -3,7 +3,7 @@ use clap::Parser;
 use flate2::{write::GzEncoder, Compression};
 use path_absolutize::Absolutize;
 use sha2::{Sha256, Digest};
-use std::{path::PathBuf, io::Write};
+use std::{io::Write, path::{Path, PathBuf}};
 
 mod plugin_manifest;
 mod spin;
@@ -77,7 +77,7 @@ impl PluginifyCommand {
             let rnd: u16 = rand::random();
             let ps = PackagingSettings {
                 name: binary.file_stem().context("no file stem")?.to_string_lossy().to_string(),
-                version: format!("99.99.99-pre{rnd}"),
+                version: PluginVersion::Exact(format!("99.99.99-pre{rnd}")),
                 homepage: None,
                 description: None,
                 spin_compatibility: ">=2.0".to_string(),
@@ -105,7 +105,7 @@ impl PluginifyCommand {
 
         let manifest = plugin_manifest::PluginManifest {
             name: ps.name.clone(),
-            version: ps.version.clone(),
+            version: ps.version.resolve()?,
             description: ps.description.clone(),
             homepage: ps.homepage.clone(),
             spin_compatibility: ps.spin_compatibility.clone(),
@@ -255,7 +255,7 @@ impl PluginifyCommand {
             eprintln!("...package exists = {}", package.exists());
         }
 
-        let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.name, ps.version, os, arch)).absolutize()?.to_path_buf();
+        let tar_path = PathBuf::from(format!("{}-{}-{}-{}.tar.gz", ps.name, ps.version.resolve()?, os, arch)).absolutize()?.to_path_buf();
         if self.verbose {
             eprintln!("About to create tar archive at {}", tar_path.display());
         }
@@ -331,7 +331,7 @@ fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
 #[serde(rename_all = "snake_case")]
 struct PackagingSettings {
     name: String,
-    version: String,
+    version: PluginVersion,
     // base_uri: String,
     homepage: Option<String>,
     description: Option<String>,
@@ -345,4 +345,41 @@ impl PackagingSettings {
     fn assets(&self) -> &[PathBuf] {
         self.assets.as_deref().unwrap_or_default()
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum PluginVersion {
+    Exact(String),
+    Derived { from: String },
+}
+
+impl PluginVersion {
+    fn resolve(&self) -> anyhow::Result<String> {
+        match self {
+            Self::Exact(ver) => Ok(ver.clone()),
+            Self::Derived { from } => try_infer_version(&from),
+        }
+    }
+}
+
+fn try_infer_version(file: impl AsRef<Path>) -> anyhow::Result<String> {
+    let file = file.as_ref();
+    let filed = file.display(); // so tired of typing file.display()
+
+    if !file.is_file() {
+        anyhow::bail!("{filed} does not exist or is not a file: can't infer version");
+    }
+
+    if file.file_name().is_some_and(|name| name == "Cargo.toml") {
+        // It's a Rust project, we know how to deal with those
+        let text = std::fs::read_to_string(file).with_context(|| format!("can't infer version from `{filed}`"))?;
+        let toml: toml::Table = toml::from_str(&text).with_context(|| format!("so-called Cargo.toml isn't TOML"))?;
+        let pkgver = toml.get("package").and_then(|v| v.get("version")).and_then(|v| v.as_str());
+        let wsver = toml.get("workspace").and_then(|v| v.get("package")).and_then(|v| v.get("version")).and_then(|v| v.as_str());
+        let ver = pkgver.or(wsver).context("can't infer version: Cargo.toml doesn't contain a version")?;
+        return Ok(ver.to_string());
+    }
+
+    Err(anyhow!("`spin pluginify` doesn't know how to infer version from `{filed}`"))
 }
