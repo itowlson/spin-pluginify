@@ -60,16 +60,51 @@ struct PluginifyCommand {
     /// Install the plugin when done.
     #[clap(short, long)]
     install: bool,
+
+    /// Scaffold a new spin-pluginify manifest.
+    #[clap(
+        name = "INIT",
+        long = "init",
+        conflicts_with = "FILE",
+        conflicts_with = "BINARY",
+        conflicts_with = "MERGE",
+        conflicts_with = "install",
+        requires = "NAME",
+        requires = "PACKAGE"
+    )]
+    init: bool,
+
+    /// The name of the plugin (requires --init).
+    #[clap(
+        name = "NAME",
+        short = 'n',
+        long = "name",
+        help_heading = "Init Options",
+        requires = "INIT"
+    )]
+    name: Option<String>,
+
+    /// Path to the plugin executable (requires --init).
+    #[clap(
+        name = "PACKAGE",
+        short = 'p',
+        long = "package",
+        help_heading = "Init Options",
+        requires = "INIT"
+    )]
+    package: Option<PathBuf>,
 }
 
 fn main() -> Result<(), Error> {
     let cmd = PluginifyCommand::parse();
-    if cmd.merge {
-        cmd.run_merge()
-    } else {
-        cmd.run_local()
+    match (cmd.init, cmd.merge) {
+        (true, _) => cmd.run_init(),
+        (_, true) => cmd.run_merge(),
+        _ => cmd.run_local(),
     }
+    
 }
+
 
 impl PluginifyCommand {
     fn packaging_settings(&self) -> Result<PackagingSettings, Error> {
@@ -96,6 +131,42 @@ impl PluginifyCommand {
 
         let ps: PackagingSettings = toml::from_str(&text)?;
         Ok(ps)
+    }
+
+    fn run_init(&self) -> Result<(), Error> {
+        let output_path = PathBuf::from("spin-pluginify.toml");
+
+        if output_path.exists() {
+            anyhow::bail!(
+                "Manifest file `{}` already exists",
+                output_path.display()
+            );
+        }
+
+        let name = self.name.clone().context("plugin name is required")?;
+        let package = self.package.clone().context("package path is required")?;
+
+        let manifest = InitManifest {
+            name,
+            version: "0.1.0".to_string(),
+            spin_compatibility: ">=4.0.0".to_string(),
+            license: "Apache-2.0".to_string(),
+            package,
+        };
+
+        let toml_string = toml::to_string_pretty(&manifest)
+            .context("failed to serialize manifest to TOML")?;
+
+        if self.verbose {
+            eprintln!("Scaffolded manifest content:\n{toml_string}");
+        }
+
+        std::fs::write(&output_path, &toml_string)
+            .with_context(|| format!("failed to write manifest to `{}`", output_path.display()))?;
+
+        println!("Created `{}`", output_path.display());
+
+        Ok(())
     }
 
     fn run_local(&self) -> Result<(), Error> {
@@ -325,6 +396,15 @@ fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
     let digest_value = sha.finalize();
     let digest_string = format!("{:x}", digest_value);
     Ok(digest_string)
+}
+
+#[derive(Debug, serde::Serialize)]
+struct InitManifest {
+    name: String,
+    version: String,
+    spin_compatibility: String,
+    license: String,
+    package: PathBuf,
 }
 
 #[derive(Debug, serde::Deserialize)]
