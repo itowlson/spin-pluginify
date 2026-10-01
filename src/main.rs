@@ -146,12 +146,15 @@ impl PluginifyCommand {
         let name = self.name.clone().context("plugin name is required")?;
         let package = self.package.clone().context("package path is required")?;
 
-        let manifest = InitManifest {
+        let manifest = PackagingSettings {
             name,
-            version: "0.1.0".to_string(),
+            package,
             spin_compatibility: ">=4.0.0".to_string(),
             license: "Apache-2.0".to_string(),
-            package,
+            version: PluginVersion::Exact("0.1.0".to_string()),
+            description: None,
+            homepage: None,
+            assets: None,
         };
 
         let toml_string = toml::to_string_pretty(&manifest)
@@ -398,16 +401,7 @@ fn file_digest_string(path: &PathBuf) -> Result<String, Error> {
     Ok(digest_string)
 }
 
-#[derive(Debug, serde::Serialize)]
-struct InitManifest {
-    name: String,
-    version: String,
-    spin_compatibility: String,
-    license: String,
-    package: PathBuf,
-}
-
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 struct PackagingSettings {
     name: String,
@@ -427,7 +421,7 @@ impl PackagingSettings {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 enum PluginVersion {
     Exact(String),
