@@ -28,12 +28,18 @@ cargo build --release
 
 ## Preparation
 
-For your plugin, create a `spin-pluginify.toml` file with the following content:
+You can scaffold a new `spin-pluginify.toml` manifest using `--init`:
+
+```bash
+spin pluginify --init --name <PLUGIN-NAME> --package <./PATH/TO/EXECUTABLE>
+```
+
+This creates a `spin-pluginify.toml` file with reasonable defaults. Alternatively, you can manually create a `spin-pluginify.toml` file with the following content:
 
 ```toml
 name = "<PLUGIN-NAME>"
 version = "0.1"
-spin_compatibility = ">=0.7"
+spin_compatibility = ">=4.0.0"
 license = "Apache-2.0"
 package = "<./PATH/TO/EXECUTABLE>"
 # optional - if present these files will be added to the plugin tar file
